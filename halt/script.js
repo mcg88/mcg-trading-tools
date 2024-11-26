@@ -80,6 +80,9 @@ $(document).ready(function() {
         // Start with first increment
         currentTime = addMinutesToTime(currentTime, 5);
 
+        // Track final upper band price for checking auction satisfaction
+        let finalUpperPrice;
+
         while (isTimeGreater(currentTime, endTime)) {
             const upperBandPrice = (haltPrice + (haltPrice * 0.05 * (rowCount + 1))).toFixed(2);
             const lowerBandPrice = calculateLowerPrice(haltPrice, 0.05 * (rowCount + 1));
@@ -112,14 +115,15 @@ $(document).ready(function() {
         // Add final row with 10% increase/decrease
         if (tableRows.length > 0) {
             const lastUpperPrice = parseFloat((haltPrice + (haltPrice * 0.05 * rowCount)).toFixed(2));
-            const finalUpperPrice = (lastUpperPrice * 1.10).toFixed(2);
+            finalUpperPrice = (lastUpperPrice * 1.10).toFixed(2);
             const finalLowerPrice = calculateLowerPrice(haltPrice, 0.05 * rowCount * 1.10);
             const isPastTime = isTimePast('15:50:00', currentTimeStr);
+            
             const isPriceValid = !isNaN(indicativePrice) && 
                                checkPriceInBand(indicativePrice, finalLowerPrice, finalUpperPrice) &&
-                               !firstValidTime; // Only mark as valid if it's the first valid time
+                               !firstValidTime;
             
-            if (isPriceValid && !firstValidTime) {
+            if (isPriceValid) {
                 firstValidTime = '15:50:00';
             }
             
@@ -138,10 +142,20 @@ $(document).ready(function() {
 
         // Show valid time message if applicable
         const validTimeMessage = $('#validTimeMessage');
-        if (!isNaN(indicativePrice) && firstValidTime) {
-            validTimeMessage
-                .html(`The earliest time the indicative price ($${indicativePrice.toFixed(2)}) falls within the bands is: <strong>${firstValidTime}</strong>`)
-                .removeClass('d-none');
+        if (!isNaN(indicativePrice)) {
+            if (indicativePrice <= 0 || indicativePrice > parseFloat(finalUpperPrice)) {
+                validTimeMessage
+                    .html('The auction will not be satisfied at these prices')
+                    .removeClass('d-none alert-success')
+                    .addClass('alert-warning');
+            } else if (firstValidTime) {
+                validTimeMessage
+                    .html(`The earliest time the indicative price ($${indicativePrice.toFixed(2)}) falls within the bands is: <strong>${firstValidTime}</strong>`)
+                    .removeClass('d-none alert-warning')
+                    .addClass('alert-success');
+            } else {
+                validTimeMessage.addClass('d-none');
+            }
         } else {
             validTimeMessage.addClass('d-none');
         }
