@@ -43,18 +43,28 @@ $(document).ready(function() {
         return now.toTimeString().slice(0, 8);
     }
 
+    function calculateLowerPrice(haltPrice, percentDecrease) {
+        const lowerPrice = haltPrice - (haltPrice * percentDecrease);
+        return Math.max(0, lowerPrice).toFixed(2);
+    }
+
+    function checkPriceInBand(indicativePrice, lowerBand, upperBand) {
+        return indicativePrice >= parseFloat(lowerBand) && indicativePrice <= parseFloat(upperBand);
+    }
+
     function generateTable(e) {
         e.preventDefault();
         
         const startTime = $('#timeInput').val();
-        const startPrice = parseFloat($('#priceInput').val());
+        const haltPrice = parseFloat($('#priceInput').val());
+        const indicativePrice = parseFloat($('#indicativePriceInput').val());
         
         // Validation
         if (!validateTime(startTime)) {
             showError('Please enter a valid time in HH:MM:SS format');
             return;
         }
-        if (isNaN(startPrice) || startPrice <= 0) {
+        if (isNaN(haltPrice) || haltPrice <= 0) {
             showError('Please enter a valid positive price');
             return;
         }
@@ -65,38 +75,75 @@ $(document).ready(function() {
         const endTime = '15:49:59';
         let rowCount = 0;
         const currentTimeStr = getCurrentTime();
+        let firstValidTime = null;
 
-        // Generate regular rows
+        // Start with first increment
+        currentTime = addMinutesToTime(currentTime, 5);
+
         while (isTimeGreater(currentTime, endTime)) {
-            const price = (startPrice + (startPrice * 0.05 * rowCount)).toFixed(2);
+            const upperBandPrice = (haltPrice + (haltPrice * 0.05 * (rowCount + 1))).toFixed(2);
+            const lowerBandPrice = calculateLowerPrice(haltPrice, 0.05 * (rowCount + 1));
             const isPastTime = isTimePast(currentTime, currentTimeStr);
             
-            const classes = isPastTime ? 'past-time' : '';
+            // Check if indicative price is within bands
+            const isPriceValid = !isNaN(indicativePrice) && 
+                               checkPriceInBand(indicativePrice, lowerBandPrice, upperBandPrice) &&
+                               !firstValidTime; // Only mark as valid if it's the first valid time
+            
+            if (isPriceValid) {
+                firstValidTime = currentTime;
+            }
+            
+            const classes = [];
+            if (isPastTime) classes.push('past-time');
+            if (isPriceValid) classes.push('valid-price-row');
+            
             tableRows.push(`
-                <tr class="${classes}">
+                <tr class="${classes.join(' ')}">
                     <td>${currentTime}</td>
-                    <td>$${price}</td>
+                    <td>$${lowerBandPrice}</td>
+                    <td>$${upperBandPrice}</td>
                 </tr>
             `);
             currentTime = addMinutesToTime(currentTime, 5);
             rowCount++;
         }
 
-        // Add final row with 10% increase
+        // Add final row with 10% increase/decrease
         if (tableRows.length > 0) {
-            const lastPrice = parseFloat((startPrice + (startPrice * 0.05 * (rowCount - 1))).toFixed(2));
-            const finalPrice = (lastPrice * 1.10).toFixed(2);
+            const lastUpperPrice = parseFloat((haltPrice + (haltPrice * 0.05 * rowCount)).toFixed(2));
+            const finalUpperPrice = (lastUpperPrice * 1.10).toFixed(2);
+            const finalLowerPrice = calculateLowerPrice(haltPrice, 0.05 * rowCount * 1.10);
             const isPastTime = isTimePast('15:50:00', currentTimeStr);
+            const isPriceValid = !isNaN(indicativePrice) && 
+                               checkPriceInBand(indicativePrice, finalLowerPrice, finalUpperPrice) &&
+                               !firstValidTime; // Only mark as valid if it's the first valid time
+            
+            if (isPriceValid && !firstValidTime) {
+                firstValidTime = '15:50:00';
+            }
             
             const classes = ['final-row'];
             if (isPastTime) classes.push('past-time');
+            if (isPriceValid) classes.push('valid-price-row');
             
             tableRows.push(`
                 <tr class="${classes.join(' ')}">
                     <td>15:50:00</td>
-                    <td>$${finalPrice}</td>
+                    <td>$${finalLowerPrice}</td>
+                    <td>$${finalUpperPrice}</td>
                 </tr>
             `);
+        }
+
+        // Show valid time message if applicable
+        const validTimeMessage = $('#validTimeMessage');
+        if (!isNaN(indicativePrice) && firstValidTime) {
+            validTimeMessage
+                .html(`The earliest time the indicative price ($${indicativePrice.toFixed(2)}) falls within the bands is: <strong>${firstValidTime}</strong>`)
+                .removeClass('d-none');
+        } else {
+            validTimeMessage.addClass('d-none');
         }
 
         // Update table
@@ -112,7 +159,7 @@ $(document).ready(function() {
                 const isPastTime = isTimePast(rowTime, newCurrentTime);
                 $(this).toggleClass('past-time', isPastTime);
             });
-        }, 1000); // Update every second
+        }, 1000);
     }
 
     // Handle form submission (both button click and Enter key)

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Time to Milliseconds Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    .container {
+      text-align: center;
+    }
+    input {
+      padding: 8px;
+      font-size: 16px;
+      margin: 10px;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Milliseconds Since Midnight Calculator</h2>
+    <input 
+      type="text" 
+      id="timeInput" 
+      placeholder="Enter time (e.g., 9:50)"
+      onkeypress="if(event.key === 'Enter') calculateMilliseconds()"
+    >
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function calculateMilliseconds() {
+      const timeInput = document.getElementById('timeInput').value;
+      const [hours, minutes] = timeInput.split(':').map(Number);
+      
+      if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        document.getElementById('result').innerHTML = 'Please enter a valid time (HH:MM)';
+        return;
+      }
+
+      const milliseconds = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+      document.getElementById('result').innerHTML = `milliseconds since midnight: ${milliseconds.toLocaleString()} milliseconds`;
+    }
+  </script>
+</body>
+</html>
