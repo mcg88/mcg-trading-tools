@@ -43,11 +43,6 @@ $(document).ready(function() {
         return now.toTimeString().slice(0, 8);
     }
 
-    function calculateLowerPrice(haltPrice, percentDecrease) {
-        const lowerPrice = haltPrice - (haltPrice * percentDecrease);
-        return Math.max(0, lowerPrice).toFixed(2);
-    }
-
     function checkPriceInBand(indicativePrice, lowerBand, upperBand) {
         return indicativePrice >= parseFloat(lowerBand) && indicativePrice <= parseFloat(upperBand);
     }
@@ -73,54 +68,64 @@ $(document).ready(function() {
         const tableRows = [];
         let currentTime = startTime;
         const endTime = '15:49:59';
-        let rowCount = 0;
         const currentTimeStr = getCurrentTime();
         let firstValidTime = null;
 
-        // Start with first increment
-        currentTime = addMinutesToTime(currentTime, 5);
+        // Calculate increment value (rounded to 2 significant figures)
+        const increment = Number((haltPrice * 0.05).toPrecision(3));
 
-        // Track final upper band price for checking auction satisfaction
-        let finalUpperPrice;
+        // Start with first increment at 5 minutes
+        currentTime = addMinutesToTime(currentTime, 5);
+        
+        // First row values
+        let lowerBand = Math.max(0, haltPrice - (2 * increment));
+        let upperBand = haltPrice + (2 * increment);
 
         while (isTimeGreater(currentTime, endTime)) {
-            const upperBandPrice = (haltPrice + (haltPrice * 0.05 * (rowCount + 1))).toFixed(2);
-            const lowerBandPrice = calculateLowerPrice(haltPrice, 0.05 * (rowCount + 1));
-            const isPastTime = isTimePast(currentTime, currentTimeStr);
+            lowerBand = Math.max(0, lowerBand.toFixed(2));
+            upperBand = upperBand.toFixed(2);
             
             // Check if indicative price is within bands
             const isPriceValid = !isNaN(indicativePrice) && 
-                               checkPriceInBand(indicativePrice, lowerBandPrice, upperBandPrice) &&
-                               !firstValidTime; // Only mark as valid if it's the first valid time
+                               checkPriceInBand(indicativePrice, lowerBand, upperBand) &&
+                               !firstValidTime;
             
             if (isPriceValid) {
                 firstValidTime = currentTime;
             }
             
             const classes = [];
-            if (isPastTime) classes.push('past-time');
+            if (isTimePast(currentTime, currentTimeStr)) classes.push('past-time');
             if (isPriceValid) classes.push('valid-price-row');
             
             tableRows.push(`
                 <tr class="${classes.join(' ')}">
                     <td>${currentTime}</td>
-                    <td>$${lowerBandPrice}</td>
-                    <td>$${upperBandPrice}</td>
+                    <td>$${lowerBand}</td>
+                    <td>$${upperBand}</td>
                 </tr>
             `);
+
+            // Calculate next row values
+            lowerBand = Math.max(0, parseFloat(lowerBand) - increment);
+            upperBand = parseFloat(upperBand) + increment;
             currentTime = addMinutesToTime(currentTime, 5);
-            rowCount++;
         }
 
-        // Add final row with 10% increase/decrease
+        // Add final row (15:50) with 90%/110% of previous row
         if (tableRows.length > 0) {
-            const lastUpperPrice = parseFloat((haltPrice + (haltPrice * 0.05 * rowCount)).toFixed(2));
-            finalUpperPrice = (lastUpperPrice * 1.10).toFixed(2);
-            const finalLowerPrice = calculateLowerPrice(haltPrice, 0.05 * rowCount * 1.10);
-            const isPastTime = isTimePast('15:50:00', currentTimeStr);
+            const lastLowerBand = parseFloat(lowerBand);
+	    if (lastLowerBand > 0){
+		lastLowerband += increment;
+		}
+            const lastUpperBand = parseFloat(upperBand)-increment;
             
+            const finalLowerBand = Math.max(0, (lastLowerBand * 0.9)).toFixed(2);
+            const finalUpperBand = (lastUpperBand * 1.1).toFixed(2);
+            
+            const isPastTime = isTimePast('15:50:00', currentTimeStr);
             const isPriceValid = !isNaN(indicativePrice) && 
-                               checkPriceInBand(indicativePrice, finalLowerPrice, finalUpperPrice) &&
+                               checkPriceInBand(indicativePrice, finalLowerBand, finalUpperBand) &&
                                !firstValidTime;
             
             if (isPriceValid) {
@@ -134,8 +139,8 @@ $(document).ready(function() {
             tableRows.push(`
                 <tr class="${classes.join(' ')}">
                     <td>15:50:00</td>
-                    <td>$${finalLowerPrice}</td>
-                    <td>$${finalUpperPrice}</td>
+                    <td>$${finalLowerBand}</td>
+                    <td>$${finalUpperBand}</td>
                 </tr>
             `);
         }
@@ -143,7 +148,7 @@ $(document).ready(function() {
         // Show valid time message if applicable
         const validTimeMessage = $('#validTimeMessage');
         if (!isNaN(indicativePrice)) {
-            if (indicativePrice <= 0 || indicativePrice > parseFloat(finalUpperPrice)) {
+            if (indicativePrice <= 0 || indicativePrice > parseFloat(upperBand)) {
                 validTimeMessage
                     .html('The auction will not be satisfied at these prices')
                     .removeClass('d-none alert-success')
