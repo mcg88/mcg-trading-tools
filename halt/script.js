@@ -116,7 +116,7 @@ $(document).ready(function() {
         if (tableRows.length > 0) {
             const lastLowerBand = parseFloat(lowerBand);
 	    if (lastLowerBand > 0){
-		lastLowerband += increment;
+		lastLowerBand += increment;
 		}
             const lastUpperBand = parseFloat(upperBand)-increment;
             
