@@ -114,12 +114,12 @@ $(document).ready(function() {
 
         // Add final row (15:50) with 90%/110% of previous row
         if (tableRows.length > 0) {
-            
+            let lastLowerBand=0;
 	    if (parseFloat(lowerBand) > 0){
-		const lastLowerBand = parseFloat(lowerBand)+ increment;
+		 lastLowerBand = parseFloat(lowerBand)+ increment;
 		}
 	else{
-		const lastLowerBand = parseFloat(lowerBand);
+		lastLowerBand = parseFloat(lowerBand);
 	}
 		
             const lastUpperBand = parseFloat(upperBand)-increment;
